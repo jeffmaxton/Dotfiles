@@ -7,30 +7,24 @@ local cache = {
   launchTimer = nil
 }
 
-local module = {}
+local module = { cache = cache }
 
 -- activate frontmost window if exists
-function module.activateFrontmost()
+module.activateFrontmost = function()
   local frontmostWindow = hs.window.frontmostWindow()
   if frontmostWindow then frontmostWindow:focus() end
 end
 
--- toggle hammerspoon console and refocus last window
-function module.toggleConsole()
-  hs.toggleConsole()
-  module.activateFrontmost()
-end
-
 -- force application launch or focus
-function module.forceLaunchOrFocus(appName)
+module.forceLaunchOrFocus = function(appName)
   -- first focus with hammerspoon
   hs.application.launchOrFocus(appName)
 
   -- clear timer if exists
   if cache.launchTimer then cache.launchTimer:stop() end
 
-  -- wait 500ms for window to appear and try hard to show the window
-  cache.launchTimer = hs.timer.doAfter(0.5, function()
+  -- wait 1s for window to appear and try hard to show the window
+  cache.launchTimer = hs.timer.doAfter(1.0, function()
     local frontmostApp     = hs.application.frontmostApplication()
     local frontmostWindows = hs.fnutils.filter(frontmostApp:allWindows(), function(win) return win:isStandard() end)
 
@@ -54,7 +48,7 @@ function module.forceLaunchOrFocus(appName)
 end
 
 -- smart app launch or focus or cycle windows
-function module.smartLaunchOrFocus(launchApps)
+module.smartLaunchOrFocus = function(launchApps)
   local frontmostWindow = hs.window.frontmostWindow()
   local runningApps     = hs.application.runningApplications()
   local runningWindows  = {}
@@ -105,7 +99,7 @@ function module.smartLaunchOrFocus(launchApps)
 end
 
 -- count all windows on all spaces
-function module.allWindowsCount(appName)
+module.allWindowsCount = function(appName)
   local _, result = hs.applescript.applescript(template([[
     tell application "{APP_NAME}"
       count every window where visible is true
@@ -115,20 +109,8 @@ function module.allWindowsCount(appName)
   return tonumber(result) or 0
 end
 
--- quit app using applescript
--- faster than :kill() for some reason
-function module.quit(appName)
-  local _, result = hs.applescript.applescript(template([[
-    tell application "{APP_NAME}"
-      quit
-    end tell
-  ]], { APP_NAME = appName }))
-
-  return result
-end
-
 -- ask before quitting app when there are multiple windows
-function module.askBeforeQuitting(appName, options)
+module.askBeforeQuitting = function(appName, options)
   local enabled = options.enabled or false
 
   if not enabled and cache.bindings[appName] then
@@ -141,36 +123,15 @@ function module.askBeforeQuitting(appName, options)
   else
     cache.bindings[appName] = hs.hotkey.bind({ 'cmd' }, 'q', function()
       local windowsCount = module.allWindowsCount(appName)
-      local shouldKill   = true
 
       if windowsCount > 1 then
-        local _, result = hs.applescript.applescript(template([[
-          tell application "{APP_NAME}"
-            activate
-            button returned of (display dialog "There are multiple windows opened: {NUM_WINDOWS}\nAre you sure you want to quit?" with icon 1 buttons {"Cancel", "Quit"} default button "Quit")
-          end tell
-        ]], { APP_NAME = appName, NUM_WINDOWS = windowsCount }))
-
-        shouldKill = result == 'Quit'
-      end
-
-      if shouldKill then
-        module.quit(appName)
+        -- for some reason this is way more responsive that calling to hs.applescript...
+        hs.task.new(os.getenv('HOME') .. '/.hammerspoon/assets/ask-to-quit.scpt', nil, { appName }):start()
       else
-        module.activateFrontmost()
+        hs.application.find(appName):kill()
       end
     end)
   end
-end
-
--- show notification center
--- NOTE: you can do that from Settings > Keyboard > Mission Control
-function module.showNotificationCenter()
-  hs.applescript.applescript([[
-    tell application "System Events" to tell process "SystemUIServer"
-      click menu bar item "Notification Center" of menu bar 2
-    end tell
-  ]])
 end
 
 return module

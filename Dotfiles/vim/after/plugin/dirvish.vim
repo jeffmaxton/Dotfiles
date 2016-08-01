@@ -1,3 +1,9 @@
+augroup dirvish_plugin
+  au!
+
+  au BufEnter dirvish <sid>DirvishSort()
+augroup END
+
 function! s:DirvishCurrentPath()
   let l:path = expand('%:~:h')
 
@@ -12,11 +18,11 @@ function! s:DirvishSort()
   if &filetype == 'dirvish'
     setlocal modifiable
     sort r /[^\/]$/
-    setlocal nomodifiable
+    " setlocal nomodifiable
   endif
 endfunction
 
-command! DirvishCurrentPath call dirvish#open(<sid>DirvishCurrentPath())
+command! DirvishCurrentPath call dirvish#open(<sid>DirvishCurrentPath()) | call <sid>DirvishSort()
 command! DirvishSort        call <sid>DirvishSort()
 
-nnoremap <silent> <c-f> :DirvishCurrentPath<cr>:DirvishSort<cr>
+nnoremap <silent> <c-f> :<c-u>DirvishCurrentPath<cr>

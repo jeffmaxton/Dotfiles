@@ -1,7 +1,9 @@
-local module      = {}
-local window      = require('ext.window')
-local application = require('ext.application')
-local webview     = require('ext.webview')
+local module             = {}
+
+local grid               = require('ext.grid')
+local smartLaunchOrFocus = require('ext.application').smartLaunchOrFocus
+local system             = require('ext.system')
+local window             = require('ext.window')
 
 -- simple unpack clone
 function unpack(t, i)
@@ -12,154 +14,111 @@ function unpack(t, i)
 end
 
 -- apply function to a window with optional params, saving it's position for restore
-local doWin = function(fn, options, ...)
-  local win  = hs.window.frontmostWindow()
-  local args = ...
-
-  local allowFullscreen = options and options.allowFullscreen
-
-  if args == nil and options then
-    args = options
-  end
-
-  if win and (allowFullscreen or not win:isFullScreen()) then
-    -- persist position only if we are not already undo/redo/saving
-    if fn ~= window.persistPosition then
-      window.persistPosition(win, 'save')
-    end
-
-    -- finally call function on window with arguments
-    fn(win, args)
-  end
-end
-
--- helper for simple hotkey binding
-local bindWin = function(fn, options, ...)
-  local args = unpack({ ... })
-  return function() doWin(fn, options, args) end
-end
-
--- helper for appling function to a window with a timer
-local timeWin = function(fn, options, ...)
-  local args = unpack({ ... })
-  return hs.timer.new(0.05, function() doWin(fn, options, args) end)
-end
-
--- helper for cycling arguments with reset time
-local cycleWin = function(fn, ...)
-  local args          = { ... }
-  local cycles        = args[2]
-  local resetInterval = 1
-  local lastCycle     = hs.timer.secondsSinceEpoch()
-  local cycleIndex    = 1
-
+local doWin = function(fn, options)
   return function()
-    local now = hs.timer.secondsSinceEpoch()
+    local win = hs.window.frontmostWindow()
 
-    if (now - lastCycle) > resetInterval then
-      cycleIndex = 1
-    else
-      cycleIndex = (cycleIndex + 1) > #cycles and 1 or cycleIndex + 1
+    local allowFullscreen = options and options.allowFullscreen
+
+    if win and (allowFullscreen or not win:isFullScreen()) then
+      -- persist position only if we are not already undo/redo/saving
+      if fn ~= window.persistPosition then
+        window.persistPosition(win, 'save')
+      end
+
+      -- finally call function on window with arguments
+      fn(win, options)
     end
-
-    lastCycle = now
-
-    doWin(fn, { args[1], cycles[cycleIndex] })
   end
 end
-
--- keyboard modifiers for bindings
-local mod = {
-  cc  = { 'cmd', 'ctrl'         },
-  ca  = { 'cmd', 'alt'          },
-  cac = { 'cmd', 'alt', 'ctrl'  },
-  cas = { 'cmd', 'alt', 'shift' }
-}
 
 module.start = function()
-  -- basic bindings
-  hs.fnutils.each({
-    { key = 'c',     mod = mod.cc,  fn = bindWin(window.center)                                          },
-    { key = 'z',     mod = mod.cc,  fn = bindWin(window.fullscreen)                                      },
-    { key = 's',     mod = mod.cc,  fn = bindWin(window.persistPosition, 'save')                         },
-    { key = 'u',     mod = mod.cc,  fn = bindWin(window.persistPosition, 'undo')                         },
-    { key = 'r',     mod = mod.cc,  fn = bindWin(window.persistPosition, 'redo')                         },
-    { key = 'tab',   mod = mod.cc,  fn = bindWin(window.cycleWindows, { allowFullscreen = true }, false) },
-    { key = 'tab',   mod = mod.ca,  fn = bindWin(window.cycleWindows, { allowFullscreen = true }, true)  },
-    { key = '/',     mod = mod.cc,  fn = application.toggleConsole                                       },
-    { key = '/',     mod = mod.cac, fn = webview.search                                                  },
-    { key = 'space', mod = mod.cac, fn = window.windowHints                                              }
-  }, function(object)
-    hs.hotkey.bind(object.mod, object.key, object.fn)
+  -- alt + tab as alternative to cmd + tab
+  hs.hotkey.bind({ 'alt' }, 'tab', window.windowHints)
+
+  -- ctrl + enter = escape
+  hs.hotkey.bind({ 'ctrl' }, 'return', function()
+    hs.eventtap.event.newKeyEvent({}, 'escape', true):post()
+    hs.eventtap.event.newKeyEvent({}, 'escape', false):post()
   end)
 
-  -- arrow bindings
-  hs.fnutils.each({ 'up', 'down', 'left', 'right' }, function(direction)
-    local nudge = timeWin(window.nudge, direction)
-    local pushAndSendCycled = cycleWin(window.pushAndSend, direction, { 1 / 2, 1 / 3, 2 / 3 })
+  -- ultra bindings
+  local ultra = { 'ctrl', 'alt', 'cmd' }
+  local bind  = function(key, action, opts)
+    local shouldRepeat = opts and opts.shouldRepeat or false
 
-    -- hs.hotkey.bind(mod.cc,  direction, bindWin(window.pushAndSend, direction))
-    hs.hotkey.bind(mod.cc,  direction, function() pushAndSendCycled() end)
-    hs.hotkey.bind(mod.ca,  direction, function() nudge:start() end, function() nudge:stop() end)
-    hs.hotkey.bind(mod.cac, direction, bindWin(window.send, direction))
-    hs.hotkey.bind(mod.cas, direction, bindWin(window.throwToScreen, direction))
+    if shouldRepeat then
+      hs.hotkey.bind(ultra, key, action, nil, action)
+    else
+      hs.hotkey.bind(ultra, key, action)
+    end
+  end
+
+  local w = 16
+  local h = 12
+  local m = 4
+
+  hs.grid.setGrid(w .. 'x' .. h).setMargins({ m, m })
+
+  hs.fnutils.each({
+    { key = 'h', fn = hs.grid.pushWindowLeft       },
+    { key = 'j', fn = hs.grid.pushWindowDown       },
+    { key = 'k', fn = hs.grid.pushWindowUp         },
+    { key = 'l', fn = hs.grid.pushWindowRight      },
+
+    { key = ',', fn = hs.grid.pushWindowNextScreen },
+    { key = '.', fn = hs.grid.pushWindowPrevScreen },
+
+    { key = '[', fn = hs.grid.resizeWindowThinner  },
+    { key = ']', fn = hs.grid.resizeWindowWider    },
+
+    { key = '=', fn = hs.grid.resizeWindowTaller   },
+    { key = '-', fn = hs.grid.resizeWindowShorter  },
+
+    { key = 'z', fn = hs.grid.maximizeWindow       },
+    { key = 's', fn = grid.swapScreens             }
+  }, function(object)
+    bind(object.key, doWin(object.fn, object.args), { shouldRepeat = true })
   end)
 
-  -- arrow bindings with 'fn'
   hs.fnutils.each({
-    { key = 'pageup',   direction = 'up'    },
-    { key = 'pagedown', direction = 'down'  },
-    { key = 'home',     direction = 'left'  },
-    { key = 'end',      direction = 'right' }
+    { key = 'f', fn = window.fullscreen, args = { allowFullscreen = true } },
+    { key = 'u', fn = window.persistPosition, args = 'undo'                },
+    { key = 'r', fn = window.persistPosition, args = 'redo'                }
   }, function(object)
-    hs.hotkey.bind(mod.cc, object.key, bindWin(window.focus, { allowFullscreen = true }, object.direction))
+    bind(object.key, doWin(object.fn, object.args))
   end)
 
-  -- move window to left/right space with 'fn'
   hs.fnutils.each({
-    { key = 'home', direction = 'west' },
-    { key = 'end',  direction = 'east' }
+    { key = '/',      fn = system.toggleConsole },
+    { key = 'escape', fn = system.displaySleep  },
+    { key = 'tab',    fn = window.windowHints   }
   }, function(object)
-    hs.hotkey.bind(mod.ca, object.key, nil, bindWin(window.moveToSpaceInDirection, object.direction))
+    bind(object.key, object.fn)
   end)
 
-  -- set window sizes
   hs.fnutils.each({
-    { key = '1', w = 1420, h = 940 },
-    { key = '2', w = 980,  h = 920 },
-    { key = '3', w = 800,  h = 880 },
-    { key = '4', w = 800,  h = 740 },
-    { key = '5', w = 700,  h = 740 },
-    { key = '6', w = 850,  h = 620 },
-    { key = '7', w = 770,  h = 470 }
+    { key = 'return', apps = { 'iTerm2', 'Terminal'         } },
+    { key = 'space',  apps = { 'Safari', 'Google Chrome'    } },
+    { key = '`',      apps = { 'Finder'                     } }
   }, function(object)
-    hs.hotkey.bind(mod.cc, object.key, bindWin(window.setSize, { w = object.w, h = object.h }))
+    bind(object.key, function() smartLaunchOrFocus(object.apps) end)
   end)
 
-  -- grow/shrink windows
   hs.fnutils.each({
-    { key = '=', mod =  window.margin },
-    { key = '-', mod = -window.margin }
-  }, function(object)
-    local resize = timeWin(window.setSize, { mod = object.mod })
+    { key = '1', geom = { x = 0, y = 0, w = 16, h = 12 } },
+    { key = '2', geom = { x = 1, y = 0, w = 14, h = 12 } },
+    { key = '3', geom = { x = 2, y = 0, w = 12, h = 12 } },
+    { key = '4', geom = { x = 3, y = 1, w = 10, h = 10 } },
+    { key = '5', geom = { x = 4, y = 2, w = 8,  h = 8  } },
 
-    hs.hotkey.bind(mod.cc, object.key, function() resize:start() end, function() resize:stop() end)
-  end)
+    { key = '6', geom = { x = 0, y = 0, w = 8, h = 12 } },
+    { key = '7', geom = { x = 8, y = 0, w = 8, h = 12 } },
 
-  -- launch and focus applications
-  hs.fnutils.each({
-    { key = 'b', apps = { 'Safari', 'Google Chrome' } },
-    { key = 'c', apps = { 'Calendar'                } },
-    { key = 'f', apps = { 'Finder', 'ForkLift'      } },
-    { key = 'm', apps = { 'Messages', 'FaceTime'    } },
-    { key = 'n', apps = { 'Notational Velocity'     } },
-    { key = 'r', apps = { 'Reminders'               } },
-    { key = 's', apps = { 'Slack', 'Skype'          } },
-    { key = 't', apps = { 'iTerm2', 'Terminal'      } },
-    { key = 'v', apps = { 'MacVim'                  } },
-    { key = 'x', apps = { 'Xcode'                   } }
+    { key = '8', geom = { x = 0, y = 2, w = 8, h = 8 } },
+    { key = '9', geom = { x = 8, y = 2, w = 8, h = 8 } }
   }, function(object)
-    hs.hotkey.bind(mod.cac, object.key, function() application.smartLaunchOrFocus(object.apps) end)
+    bind(object.key, doWin(hs.grid.set, object.geom))
   end)
 end
 

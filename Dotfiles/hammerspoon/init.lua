@@ -1,55 +1,63 @@
--- require modules into global namespace so they are available in the console
-betterswitch                 = require('utils.spaces.betterswitch')
 bindings                     = require('bindings')
 controlplane                 = require('utils.controlplane')
-dots                         = require('utils.spaces.dots')
 notify                       = require('utils.notify')
-specialkeys                  = require('utils.specialkeys')
+spaces                       = require('utils.spaces')
 watchers                     = require('utils.watchers')
 window                       = require('ext.window')
 
 -- extensions
 window.fixEnabled            = false
 window.fullFrame             = true
-window.historyLimit          = 20
+window.highlightEnabled      = false
+window.historyLimit          = 50
 window.margin                = 6
-
--- dots
-dots.alpha                   = 0.15
-dots.selectedAlpha           = 0.45
-dots.distance                = 16
-dots.size                    = 8
 
 -- hs
 hs.window.animationDuration  = 0.1
+
 hs.hints.fontName            = 'Helvetica-Bold'
 hs.hints.fontSize            = 22
 hs.hints.showTitleThresh     = 0
 hs.hints.hintChars           = { 'A', 'S', 'D', 'F', 'J', 'K', 'L', 'Q', 'W', 'E', 'R', 'Z', 'X', 'C' }
 
+-- controlplane
+controlplane.enabled         = { 'automount', 'bluetooth', 'displays', 'persistvpn' }
+controlplane.trustedNetworks = { 'Skynet', 'Skynet 5G' }
+controlplane.vpns            = { 'VPN PIA', 'VPN STL' }
+
 -- notifications
 notify.enabled               = { 'battery', 'online', 'wifi' }
 
+-- spaces
+spaces.enabled               = { 'betterswitch' }
+
 -- watchers
-watchers.enabled             = { 'application', 'reload', 'urlevent' }
+watchers.enabled             = { 'autogrid', 'application', 'reload', 'urlevent' }
 watchers.urlPreference       = { 'Safari', 'Google Chrome' }
 
--- controlplane
-controlplane.enabled         = { 'automount', 'autoafp', 'bluetooth', 'displays', 'persistvpn' }
-controlplane.homeNetwork     = 'Skynet 5G'
-controlplane.afpVolumes      = { 'afp://Stelis._afpovertcp._tcp.local/' }
-
--- special keyboard keys
-specialkeys.enabled          = { 'players' }
-specialkeys.playerPreference = { 'Spotify', 'OnlineSpotify', 'iTunes' }
-
--- start
+-- start modules
 hs.fnutils.each({
   bindings,
   controlplane,
-  dots,
   notify,
-  betterswitch,
-  specialkeys,
+  spaces,
   watchers
 }, function(module) module.start() end)
+
+-- stop modules on shutdown
+hs.shutdownCallback = function()
+  -- save window positions in hs.settings
+  window.persistPosition('store')
+
+  -- stop modules
+  hs.fnutils.each({
+    bindings,
+    controlplane,
+    notify,
+    spaces,
+    watchers
+  }, function(module) module.stop() end)
+end
+
+-- ensure IPC is there
+hs.ipc.cliInstall()

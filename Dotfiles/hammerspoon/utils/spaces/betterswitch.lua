@@ -7,27 +7,28 @@ local spaceFromIndex   = require('ext.spaces').spaceFromIndex
 local spaceInDirection = require('ext.spaces').spaceInDirection
 local spaces           = require('hs._asm.undocumented.spaces')
 
-local module = {}
 local cache  = {}
+local module = { cache = cache }
 
 local waitForAnimation = function(targetSpace, changedFocus, mousePosition)
   if cache.waiting then return end
 
   cache.changeStart = hs.timer.secondsSinceEpoch()
 
-  -- wait for switching to end (spaces.isAnimating() doesn't work)
+  -- wait for switching to end (spaces.isAnimating() doesn't work for me)
   -- and move cursor back to original position
   cache.waiting = hs.timer.waitUntil(
     function()
-      return (spaces.activeSpace() == targetSpace) or (hs.timer.secondsSinceEpoch() - cache.changeStart > 1)
+      return (spaces.activeSpace() == targetSpace) or (hs.timer.secondsSinceEpoch() - cache.changeStart > 2)
     end,
     function()
       if changedFocus then
         hs.mouse.setAbsolutePosition(mousePosition)
       end
 
-      cache.switching = false
-      cache.waiting   = nil
+      cache.changeStart = nil
+      cache.switching   = false
+      cache.waiting     = nil
     end,
     0.01
   )
@@ -40,7 +41,10 @@ module.switchToIndex = function(targetIdx)
 
   -- grab spaces for screen with active window
   local currentScreen = activeScreen()
-  local screenSpaces  = screenSpaces()
+  local screenSpaces  = screenSpaces(currentScreen)
+
+  -- gain focus on the screen
+  local changedFocus = focusScreen(currentScreen)
 
   -- grab index of currently active space
   local activeIdx     = activeSpaceIndex(screenSpaces)
@@ -60,9 +64,6 @@ module.switchToIndex = function(targetIdx)
 
     local eventCount     = math.abs(targetIdx - activeIdx)
     local eventDirection = targetIdx > activeIdx and 'right' or 'left'
-
-    -- gain focus on the screen
-    local changedFocus = focusScreen(currentScreen)
 
     for _ = 1, eventCount do
       hs.eventtap.keyStroke({ 'ctrl' }, eventDirection)

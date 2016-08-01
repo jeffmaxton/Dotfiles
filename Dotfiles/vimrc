@@ -4,20 +4,23 @@ call plug#begin('~/.vim/plugged')
 Plug 'Konfekt/FastFold'
 Plug 'Raimondi/delimitMate'
 Plug 'airblade/vim-rooter'
+Plug 'ajh17/VimCompletesMe'
+Plug 'chaoren/vim-wordmotion'
 Plug 'christoomey/vim-tmux-navigator'
-Plug 'coderifous/textobj-word-column.vim'
-Plug 'ervandew/supertab'
 Plug 'justinmk/vim-dirvish'
 Plug 'matchit.zip'
 Plug 'pbrisbin/vim-mkdir'
 Plug 'tpope/vim-repeat'
 Plug 'tpope/vim-sleuth'
 Plug 'tpope/vim-surround'
+Plug 'tpope/vim-unimpaired'
 Plug 'vim-airline/vim-airline' | Plug 'vim-airline/vim-airline-themes'
+Plug 'wellle/targets.vim'
 Plug 'yssl/QFEnter'
 
 " on demand loading
 Plug 'christoomey/vim-sort-motion',        { 'on': [ '<Plug>SortMotion', '<Plug>SortMotion', '<Plug>SortLines' ] }
+Plug 'duff/vim-scratch',                   { 'on': 'Scratch' }
 Plug 'epeli/slimux',                       { 'on': [ 'SlimuxREPL', 'SlimuxREPLSendSelection', 'SlimuxREPLSendBuffer', 'SlimuxREPLSendLine', 'SlimuxREPLSendParagraph', 'SlimuxGlobalConfigure' ] }
 Plug 'junegunn/goyo.vim',                  { 'on': 'Goyo' }
 Plug 'junegunn/limelight.vim',             { 'on': 'Limelight' }
@@ -31,16 +34,17 @@ Plug 'vim-scripts/ReplaceWithRegister',    { 'on': [ '<Plug>ReplaceWithRegisterO
 
 " loading based on system and vim version
 Plug 'airblade/vim-gitgutter',             { 'on': [] } " only on mac
-Plug 'benekastah/neomake',                 { 'on': [], 'commit': 'e06f85e1651f5fe8841df3c85df1c51a891ccac4' } " only in nvim
-Plug 'marijnh/tern_for_vim',               { 'on': [], 'do': 'npm install' } " only on mac
+Plug 'neomake/neomake',                    { 'on': [] } " only in nvim
 Plug 'neovim/node-host',                   { 'on': [], 'do': 'npm install' } " only in nvim
 Plug 'scrooloose/syntastic',               { 'on': [] } " only in vanilla vim on mac
-Plug 'snoe/nvim-parinfer.js',              { 'on': [], 'do': 'lein cljsbuild once plugin' } " only in nvim
+Plug 'snoe/nvim-parinfer.js',              { 'on': [], 'do': 'lein do npm install, cljsbuild once plugin' } " only in nvim
 Plug 'tmux-plugins/vim-tmux-focus-events', { 'on': [] } " only in tmux
+Plug 'bfredl/nvim-miniyank',               { 'on': [] } " only in nvim
 
 " filetype based plugins
 Plug 'b4winckler/vim-objc',                { 'for': 'objc' }
 Plug 'briancollins/vim-jst',               { 'for': 'jst' }
+Plug 'cespare/vim-toml',                   { 'for': 'toml' }
 Plug 'davidoc/taskpaper.vim',              { 'for': 'taskpaper' }
 Plug 'elzr/vim-json',                      { 'for': 'json' }
 Plug 'groenewege/vim-less',                { 'for': 'less' }
@@ -48,6 +52,7 @@ Plug 'kchmck/vim-coffee-script',           { 'for': 'coffee' }
 Plug 'keith/swift.vim',                    { 'for': 'swift' }
 Plug 'leafgarland/typescript-vim',         { 'for': 'typescript' }
 Plug 'moll/vim-node',                      { 'for': 'javascript'  }
+Plug 'mustache/vim-mustache-handlebars',   { 'for': [ 'handlebars', 'mustache' ] }
 Plug 'mxw/vim-jsx',                        { 'for': 'javascript' }
 Plug 'nelstrom/vim-markdown-folding',      { 'for': 'markdown' }
 Plug 'othree/html5.vim',                   { 'for': 'html' }
@@ -73,7 +78,13 @@ if ($TMUX != '')
 endif
 
 if has('mac')
-  call plug#load('vim-gitgutter', has('nvim') ? 'neomake' : 'syntastic')
+  call plug#load('vim-gitgutter')
+
+  if has('nvim')
+    call plug#load('neomake', 'nvim-miniyank')
+  else
+    call plug#load('syntastic')
+  endif
 endif
 
 " viminfo - more v:oldfiles, register lines
@@ -153,6 +164,7 @@ set linebreak
 set ruler
 set virtualedit=block
 
+set sidescroll=1
 set sidescrolloff=6
 set scrolloff=3
 
@@ -179,12 +191,8 @@ set nobackup
 set noswapfile
 set undofile
 set undodir=~/.vim/undo//
-set backupdir=~/.vim/backup//
 
-if !isdirectory(&backupdir)
-  call mkdir(&backupdir, "p")
-endif
-
+" create undodir if needed
 if !isdirectory(&undodir)
   call mkdir(&undodir, "p")
 endif
@@ -193,8 +201,8 @@ endif
 set backupcopy=yes
 
 " long history and undo
-set history=1000
-set undolevels=1000
+set history=10000
+set undolevels=10000
 set undoreload=10000
 
 " search settings
@@ -246,7 +254,9 @@ set foldcolumn=0
 
 " terminal
 if has('nvim')
-  tnoremap <Esc> <c-\><c-n>
+  tnoremap <esc> <c-\><c-n>
+  tnoremap <leader><esc> <esc>
+  let g:terminal_scrollback_buffer_size = 5000
 endif
 
 " re-source vimrc
@@ -262,13 +272,16 @@ map <tab> %
 map gf :e <cfile><cr>
 
 " search for currently selected text from visual mode
-vnoremap / "vy/<c-r>v
+vnoremap / "vy/<c-r>v<cr>
+vnoremap ? "vy?<c-r>v<cr>
 
-" input mode mappings
+" c-a / c-e everywhere
 inoremap <c-a> <c-o>0
 inoremap <c-e> <c-o>$
+cnoremap <c-a> <home>
+cnoremap <c-e> <end>
 
-" proper movement
+" force proper movement
 nnoremap <left>  <nop>
 nnoremap <right> <nop>
 nnoremap <up>    <nop>
@@ -338,10 +351,6 @@ nnoremap S i<cr><esc>^mwgk:silent! s/\v +$//<cr>:noh<cr>
 " run make
 nnoremap R :wa<cr>:silent make!<cr>:redraw!<cr>
 
-" newlines without entering insert mode
-nnoremap go o<Esc>k
-nnoremap gO O<Esc>j
-
 " open common files
 nnoremap <leader>ov :e ~/.vimrc<cr>
 nnoremap <leader>og :e ~/.gvimrc<cr>
@@ -350,7 +359,7 @@ nnoremap <leader>om :e ~/.tmux.conf<cr>
 
 if has('mac')
   nnoremap <leader>od :e ~/Documents/Dropbox/Notes/drafts.txt<cr>
-  nnoremap <leader>ot :e ~/Documents/Dropbox/Tasks/Tasks.taskpaper<cr>
+  nnoremap <leader>ot :e ~/Documents/Dropbox/Tasks/Todo.taskpaper<cr>
   nnoremap <leader>oh :e ~/.hammerspoon/init.lua<cr>
 endif
 
@@ -368,22 +377,9 @@ nnoremap gB         :bprev<cr>
 nnoremap <leader>bd :bdelete!<cr>
 nnoremap <leader>bb :b#<cr>
 
-" easier tab / buffer switching
-nnoremap ]b :bnext<cr>
-nnoremap [b :bprev<cr>
-nnoremap ]t :tabnext<cr>
-nnoremap [t :tabprev<cr>
-
-" loclist switching
-nnoremap ]l :call FixPrevious('lnext', 'lfirst')<cr>zz
-nnoremap [l :call FixNext('lprev', 'llast')<cr>zz
-nnoremap ]c :call FixPrevious('cnext', 'cfirst')<cr>zz
-nnoremap [c :call FixNext('cprev', 'clast')<cr>zz
-
 " new buffer / tab
 nnoremap <leader>B :enew<cr>
 nnoremap <leader>T :tabnew<cr>
-nnoremap <leader>S :enew<cr>:setlocal buftype=nofile bufhidden=wipe noswapfile<cr>:echo "Scratch buffer created"<cr>
 
 " yank whole buffer
 nnoremap <leader>ya :let yank_view=winsaveview()<cr>ggyG<cr>:call winrestview(yank_view)<cr>
@@ -402,17 +398,12 @@ xnoremap <leader>G :GrepVisual<cr>
 nmap <silent> <leader>c :nohlsearch<cr>:redraw!<cr>
 nmap <silent> <leader>C <Plug>(quickhl-manual-reset):nohlsearch<cr>:redraw!<cr>
 
-" toggles
-nnoremap <silent> <leader>tl :set list!<cr>
-nnoremap <silent> <leader>tn :set number!<cr>
-nnoremap <silent> <leader>ts :setlocal spell!<cr>
-nnoremap <silent> <leader>tw :set wrap!<cr>
-
 " aligns
 nnoremap <leader>= :let align_view=winsaveview()<cr>=i}<cr>:call winrestview(align_view)<cr>
 
-" center on cursor using scrollof
-nnoremap <silent> <leader>z :let &scrolloff=999-&scrolloff<cr>
+" folds
+nnoremap zf mzzMzv`zzt
+nnoremap <leader><leader> za
 
 " zoom window
 nnoremap <silent> <c-w>z :ZoomToggle<cr>

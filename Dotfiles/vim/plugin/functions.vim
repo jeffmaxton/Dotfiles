@@ -103,23 +103,6 @@ command! SpaceToTab :setlocal noexpandtab | %retab!
 command! SpellPL :setlocal spelllang=pl | setlocal spell
 command! SpellEN :setlocal spelllang=en | setlocal spell
 
-" location jumps
-function! FixPrevious(prev, last)
-  try
-    exe a:prev
-  catch
-    try | exe a:last | catch | endtry
-  endtry
-endfunction
-
-function! FixNext(next, first)
-  try
-    exe a:next
-  catch
-    try | exe a:first | catch | endtry
-  endtry
-endfunction
-
 " makes * and # work in visual mode
 function! VisualSearch(cmdtype)
   let l:temp = @s
@@ -249,7 +232,7 @@ command! ZoomToggle call <sid>ZoomToggle()
 " Today view - taskpaper + drafts in split,
 " folds open on @today and last section of drafts
 function! s:Today()
-  e ~/Documents/Dropbox/Tasks/Tasks.taskpaper
+  e ~/Documents/Dropbox/Tasks/Todo.taskpaper
   norm zM
   %g/\v^(.*\@today)&(.*\@done)@!/foldopen!
   norm gg

@@ -1,201 +1,23 @@
-local activeScreen     = require('ext.screen').activeScreen
-local application      = require('ext.application')
-local bezel            = require('ext.drawing').bezel
-local focusScreen      = require('ext.screen').focusScreen
-local framed           = require('ext.framed')
-local highlightWindow  = require('ext.drawing').highlightWindow
-local screenSpaces     = require('ext.spaces').screenSpaces
-local spaceInDirection = require('ext.spaces').spaceInDirection
-local spaces           = require('hs._asm.undocumented.spaces')
+local focusScreen          = require('ext.screen').focusScreen
+local highlightWindow      = require('ext.drawing').highlightWindow
+local isSpaceFullscreenApp = require('ext.spaces').isSpaceFullscreenApp
+local spaceInDirection     = require('ext.spaces').spaceInDirection
+local spaces               = require('hs._asm.undocumented.spaces')
 
-local cache = {
-  mousePosition = nil
+local cache  = {
+  mousePosition   = nil,
+  windowPositions = hs.settings.get('windowPositions') or {}
 }
 
-local module = {}
+local module = { cache = cache }
 
--- get screen frame
-function module.screenFrame(win)
-  local funcName  = window.fullFrame and 'fullFrame' or 'frame'
-  local winScreen = win:screen()
-
-  return winScreen[funcName](winScreen)
-end
-
--- set frame
-function module.setFrame(win, frame, time)
-  win:setFrame(frame, time or hs.window.animationDuration)
-end
-
--- ugly fix for problem with window height when it's as big as screen
-function module.fixFrame(win)
-  if window.fixEnabled then
-    local screen = module.screenFrame(win)
-    local frame  = win:frame()
-
-    if (frame.h > (screen.h - window.margin * 2)) then
-      frame.h = screen.h - window.margin * 10
-      window.setFrame(win, frame)
-    end
-  end
-end
-
--- pushes window in direction
-function module.push(win, direction, value)
-  local screen = module.screenFrame(win)
-  local frame
-
-  frame = framed.push(screen, direction, value)
-
-  module.fixFrame(win)
-  module.setFrame(win, frame)
-end
-
--- nudges window in direction
-function module.nudge(win, direction)
-  local screen = module.screenFrame(win)
-  local frame  = win:frame()
-
-  frame = framed.nudge(frame, screen, direction)
-  module.setFrame(win, frame, 0.05)
-end
-
--- push and nudge window in direction
-function module.pushAndSend(win, options)
-  local direction, value
-
-  if type(options) == 'table' then
-    direction = options[1]
-    value     = options[2] or 1 / 2
-  else
-    direction = options
-    value     = 1 / 2
-  end
-
-  module.push(win, direction, value)
-
-  hs.timer.doAfter(hs.window.animationDuration * 3 / 2, function()
-    module.send(win, direction)
-  end)
-end
-
--- sends window in direction
-function module.send(win, direction)
-  local screen = module.screenFrame(win)
-  local frame  = win:frame()
-
-  frame = framed.send(frame, screen, direction)
-
-  module.fixFrame(win)
-  module.setFrame(win, frame)
-end
-
--- centers window
-function module.center(win)
-  local screen = module.screenFrame(win)
-  local frame  = win:frame()
-
-  frame = framed.center(frame, screen)
-  module.setFrame(win, frame)
-end
-
--- fullscreen window with margin
-function module.fullscreen(win)
-  local screen = module.screenFrame(win)
-  local frame  = {
-    x = window.margin + screen.x,
-    y = window.margin + screen.y,
-    w = screen.w - window.margin * 2,
-    h = screen.h - window.margin * 2
-  }
-
-  module.fixFrame(win)
-  module.setFrame(win, frame)
-
-  -- center after setting frame, fixes terminal
-  hs.timer.doAfter(hs.window.animationDuration * 3 / 2, function()
-    module.center(win)
-  end)
-end
-
--- set window size and center
-function module.setSize(win, size)
-  local screen = module.screenFrame(win)
-  local frame  = win:frame()
-
-  if size.w and size.h then
-    frame.w = size.w
-    frame.h = size.h
-  elseif size.mod then
-    frame.w = frame.w + size.mod
-    frame.h = frame.h + size.mod
-  end
-
-  frame = framed.fit(frame, screen)
-  frame = framed.center(frame, screen)
-
-  module.setFrame(win, frame)
-
-  -- center after setting frame, fixes terminal
-  hs.timer.doAfter(hs.window.animationDuration * 3 / 2, function()
-    module.center(win)
-  end)
-end
-
--- focus window in direction
-function module.focus(win, direction)
-  local functions = {
-    up    = 'focusWindowNorth',
-    down  = 'focusWindowSouth',
-    left  = 'focusWindowWest',
-    right = 'focusWindowEast'
-  }
-
-  local candidateWindows = nil   -- we want to focus all windows
-  local frontmost        = false -- focuses the nearest window that isn't occluded by any other window
-  local strict           = true  -- only consider windows at an angle between 45 and -45 degrees
-
-  hs.window[functions[direction]](win, candidateWindows, frontmost, strict)
-  highlightWindow()
-end
-
--- throw to screen in direction, center and fit
-function module.throwToScreen(win, direction)
-  local winScreen       = win:screen()
-  local frameFunc       = module.fullFrame and 'fullFrame' or 'frame'
-  local throwScreenFunc = {
-    up    = 'toNorth',
-    down  = 'toSouth',
-    left  = 'toWest',
-    right = 'toEast'
-  }
-
-  local throwScreen = winScreen[throwScreenFunc[direction]](winScreen)
-
-  if throwScreen == nil then return end
-
-  local frame       = win:frame()
-  local screenFrame = throwScreen[frameFunc](throwScreen)
-
-  frame.x = screenFrame.x
-  frame.y = screenFrame.y
-
-  frame = framed.fit(frame, screenFrame)
-  frame = framed.center(frame, screenFrame)
-
-  module.fixFrame(win)
-  module.setFrame(win, frame)
-
-  win:focus()
-
-  -- center after setting frame, fixes terminal
-  hs.timer.doAfter(hs.window.animationDuration * 3 / 2, function()
-    module.center(win)
-  end)
+-- fullscreen toggle
+module.fullscreen = function(win)
+  win:setFullScreen(not win:isFullscreen())
 end
 
 -- move window to another space
-function module.moveToSpaceInDirection(win, direction)
+module.moveToSpace = function(win, direction)
   local clickPoint  = win:zoomButtonRect()
   local sleepTime   = 1000
   local targetSpace = spaceInDirection(direction)
@@ -204,6 +26,7 @@ function module.moveToSpaceInDirection(win, direction)
   local shouldMoveWindow = hs.fnutils.every({
     clickPoint ~= nil,
     targetSpace ~= nil,
+    not isSpaceFullscreenApp(targetSpace),
     not cache.movingWindowToSpace
   }, function(test) return test end)
 
@@ -242,16 +65,13 @@ function module.moveToSpaceInDirection(win, direction)
 
       -- reset cache
       cache.movingWindowToSpace = false
-
-      -- display bezel info
-      bezel(direction == 'east' and '→' or '←', 70)
     end,
     0.01 -- check every 1/100 of a second
   )
 end
 
 -- cycle application windows
-function module.cycleWindows(win, appWindowsOnly)
+module.cycleWindows = function(win, appWindowsOnly)
   local allWindows = appWindowsOnly and win:application():allWindows() or hs.window.allWindows()
 
   --  we only care about standard windows
@@ -290,17 +110,26 @@ function module.cycleWindows(win, appWindowsOnly)
 end
 
 -- show hints with highlight
-function module.windowHints()
+module.windowHints = function()
   hs.hints.windowHints(nil, highlightWindow)
 end
 
 -- save and restore window positions
-function module.persistPosition(win, option)
-  local appId           = win:application():bundleID()
-  local frame           = win:frame()
-  local windowPositions = hs.settings.get('windowPositions') or {}
-  local index           = windowPositions[appId] and windowPositions[appId].index or nil
-  local frames          = windowPositions[appId] and windowPositions[appId].frames or {}
+module.persistPosition = function(win, option)
+  local windowPositions = cache.windowPositions
+
+  -- store position into hs.settings
+  if win == 'store' or option == 'store' then
+    hs.settings.set('windowPositions', windowPositions)
+    return
+  end
+
+  -- otherwise run the logic
+  local application = win:application()
+  local appId       = application:bundleID() or application:name()
+  local frame       = win:frame()
+  local index       = windowPositions[appId] and windowPositions[appId].index or nil
+  local frames      = windowPositions[appId] and windowPositions[appId].frames or {}
 
   -- check if given frame differs frome last one in array
   local framesDiffer = function(frame, frames)
@@ -333,23 +162,21 @@ function module.persistPosition(win, option)
       end
     end
 
-    module.setFrame(win, frames[index])
+    win:setFrame(frames[index])
     index = math.max(index - 1, 1)
   end
 
   -- redo window position
   if option == 'redo' and index ~= nil then
     index = math.min(#frames, index + 1)
-    module.setFrame(win, frames[index])
+    win:setFrame(frames[index])
   end
 
-  -- update window positions object
-  windowPositions[appId] = {
+  -- update cached window positions object
+  cache.windowPositions[appId] = {
     index  = index,
     frames = frames
   }
-
-  hs.settings.set('windowPositions', windowPositions)
 end
 
 return module

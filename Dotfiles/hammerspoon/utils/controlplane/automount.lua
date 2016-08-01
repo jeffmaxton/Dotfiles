@@ -1,9 +1,10 @@
-local module = {}
 local cache  = {
   powerSource = hs.battery.powerSource(),
   watchers    = {},
   tasks       = {}
 }
+
+local module = { cache = cache }
 
 local scriptsPath = os.getenv('HOME') .. '/Documents/Code/Scripts/'
 local notify      = require('utils.controlplane.notify')
@@ -22,11 +23,11 @@ local runMountTask = function(script, callback)
 end
 
 local umountAll = function(callback)
-  runMountTask('umount-all', function() notify('Disks ejected') end)
+  runMountTask('umount-all')
 end
 
 local mountAll = function(callback)
-  runMountTask('mount-all', function() notify('Disks mounted') end)
+  runMountTask('mount-all')
 end
 
 local batteryWatcher = function()

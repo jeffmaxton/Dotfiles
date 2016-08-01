@@ -432,22 +432,26 @@ exe "hi! luaTable" .s:fmt_none .s:fg_blue .s:bg_none
 " }}}
 " javascript syntax highlighting {{{
 
-exe "hi! jsArrowFunction"      .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsBraces"             .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsBrackets"           .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsDomElemAttrs"       .s:fmt_none .s:fg_foreground .s:bg_none
-exe "hi! jsFuncAssignObjChain" .s:fmt_none .s:fg_aqua       .s:bg_none
-exe "hi! jsFuncBraces"         .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsFuncName"           .s:fmt_none .s:fg_aqua       .s:bg_none
-exe "hi! jsFuncParens"         .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsFunction"           .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsGlobalObjects"      .s:fmt_none .s:fg_foreground .s:bg_none
-exe "hi! jsHtmlElemAttrs"      .s:fmt_none .s:fg_foreground .s:bg_none
-exe "hi! jsHtmlEvents"         .s:fmt_none .s:fg_foreground .s:bg_none
-exe "hi! jsParens"             .s:fmt_none .s:fg_blue       .s:bg_none
-exe "hi! jsPrototype"          .s:fmt_none .s:fg_aqua       .s:bg_none
-exe "hi! jsStorageClass"       .s:fmt_none .s:fg_purple     .s:bg_none
-exe "hi! jsThis"               .s:fmt_none .s:fg_purple     .s:bg_none
+exe "hi! jsArrowFunction"        .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsBraces"               .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsBrackets"             .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsDomElemAttrs"         .s:fmt_none .s:fg_foreground .s:bg_none
+exe "hi! jsFuncAssignObjChain"   .s:fmt_none .s:fg_aqua       .s:bg_none
+exe "hi! jsFuncArgDestructuring" .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsDestructuringBraces"  .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsFuncBraces"           .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsFuncName"             .s:fmt_none .s:fg_aqua       .s:bg_none
+exe "hi! jsFuncParens"           .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsFunction"             .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsGlobalObjects"        .s:fmt_none .s:fg_foreground .s:bg_none
+exe "hi! jsHtmlElemAttrs"        .s:fmt_none .s:fg_foreground .s:bg_none
+exe "hi! jsHtmlEvents"           .s:fmt_none .s:fg_foreground .s:bg_none
+exe "hi! jsObjectBraces"         .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsObjectFuncName"       .s:fmt_none .s:fg_foreground .s:bg_none
+exe "hi! jsParens"               .s:fmt_none .s:fg_blue       .s:bg_none
+exe "hi! jsPrototype"            .s:fmt_none .s:fg_aqua       .s:bg_none
+exe "hi! jsStorageClass"         .s:fmt_none .s:fg_purple     .s:bg_none
+exe "hi! jsThis"                 .s:fmt_none .s:fg_purple     .s:bg_none
 
 " }}}
 " yaml syntax highlighting {{{
@@ -525,6 +529,11 @@ exe "hi! clojureQuote"    .s:fmt_none .s:fg_blue    .s:bg_none
 exe "hi! clojureSexp"     .s:fmt_none .s:fg_blue    .s:bg_none
 exe "hi! clojureSpecial"  .s:fmt_none .s:fg_blue    .s:bg_none
 exe "hi! clojureVarArg"   .s:fmt_none .s:fg_aqua    .s:bg_none
+
+" }}}
+" python highlighting {{{
+
+exe "hi! pythonStatement" .s:fmt_none .s:fg_aqua .s:bg_none
 
 " }}}
 " clever-f highlighting {{{

@@ -1,8 +1,21 @@
-local module = {}
 local cache  = {}
+local module = { cache = cache }
 
-local notify        = require('utils.controlplane.notify')
-local onlineWatcher = require('ext.onlinewatcher')
+local notify = require('utils.controlplane.notify')
+
+local isAFPConnected = function(name)
+  local _, res = hs.applescript.applescript([[
+    tell application "Finder"
+      if exists disk "]] .. name .. [[" then
+        return 1
+      else
+        return 0
+      end if
+    end tell
+  ]])
+
+  return res == 1
+end
 
 local connectAFPVolume = function(volume)
   hs.applescript.applescript([[
@@ -22,7 +35,7 @@ end
 local wifiWatcher = function()
   local currentNetwork = hs.wifi.currentNetwork()
 
-  if (currentNetwork ~= cache.network or not cache.network) and currentNetwork == controlplane.homeNetwork then
+  if (currentNetwork ~= cache.network or not cache.network) and currentNetwork == controlplane.homeNetwork and not isAFPConnected('szymon\'s home') then
     connectAFPVolumes()
   end
 

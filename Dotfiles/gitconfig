@@ -8,6 +8,7 @@
 [diff]
   color = auto
   algorithm = patience
+  compactionHeuristic = true
 [pager]
   color = true
 [status]
@@ -17,6 +18,7 @@
   amend = !git log -n 1 --pretty=tformat:%s%n%n%b | git commit -F - --amend
   edit  = !$EDITOR $(git ls-files -m)
 
+  cm = commit -m
   ci = commit -am
   st = status -sb
   di = diff --minimal
@@ -26,3 +28,5 @@
   ll = log --pretty=format:"%C(yellow)%h%x09%C(green)%cd%x09%C(reset)%s\\%C(magenta)%d\\ %C(blue)[%cn]" --decorate --numstat
 [push]
   default = tracking
+[rere]
+	enabled = true
